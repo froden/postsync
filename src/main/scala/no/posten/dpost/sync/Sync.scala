@@ -10,6 +10,7 @@ import java.io.ByteArrayInputStream
 import org.apache.commons.codec.binary.Hex
 import org.apache.commons.io.FileUtils
 import java.io.File
+import scala.io.Source
 
 object Sync {
 
@@ -24,6 +25,23 @@ object Sync {
       if (!files.exists(_.getName == folderName)) new File(folder, folderName).mkdir
     }
   }
+
+  import net.liftweb.json._
+  import net.liftweb.json.Serialization.{ read, write }
+  case class SyncItem(id: String, filename: String, lastUpdated: Long)
+  def writeSyncFile(content: List[SyncItem], syncFile: File) = {
+    val formats = Serialization.formats(NoTypeHints)
+    val json = write(content)(formats)
+    FileUtils.writeStringToFile(syncFile, json)
+  }
+
+  def readSyncFile(syncFile: File) = {
+    val ser = Source.fromFile(syncFile, "utf-8").mkString
+    implicit val formats = Serialization.formats(NoTypeHints)
+    read[List[SyncItem]](ser)
+  }
+
+  def filename(doc: Document) = doc.subject + "." + doc.fileType
 
   object SyncFolder {
     final val INBOX = "INBOX"
