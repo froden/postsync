@@ -11,6 +11,7 @@ import org.apache.commons.codec.binary.Hex
 import org.apache.commons.io.FileUtils
 import java.io.File
 import scala.io.Source
+import API._
 
 object Sync {
 
@@ -28,8 +29,13 @@ object Sync {
 
   import net.liftweb.json._
   import net.liftweb.json.Serialization.{ read, write }
+
   case class SyncItem(id: String, filename: String, lastUpdated: Long)
-  def writeSyncFile(content: List[SyncItem], syncFile: File) = {
+  object SyncItem {
+    def apply(doc: Document): SyncItem = SyncItem(doc.id, doc.filename, System.currentTimeMillis)
+  }
+
+  def writeSyncFile(syncFile: File, content: List[SyncItem]) = {
     val formats = Serialization.formats(NoTypeHints)
     val json = write(content)(formats)
     FileUtils.writeStringToFile(syncFile, json)
@@ -41,7 +47,29 @@ object Sync {
     read[List[SyncItem]](ser)
   }
 
-  def filename(doc: Document) = doc.subject + "." + doc.fileType
+  def findItemsNotIn(ours: List[SyncItem], other: List[SyncItem]) = {
+    ours.filterNot(item => other.exists(_.id == item.id))
+  }
+
+  def delete(folder: File, syncData: List[SyncItem]): List[SyncItem] = {
+    syncData.filter { item =>
+      println("Deleting " + item)
+      val file = new File(folder, item.filename)
+      if (file.exists) file.delete() else true
+    }
+  }
+
+  def download(folder: File, syncData: List[SyncItem]): List[SyncItem] = {
+    syncData.filter { item =>
+      println("Downloading " + item)
+      val file = new File(folder, item.filename)
+      if (!file.exists) {
+        API.download(Link(item.id), file).isSuccess
+      } else {
+        true
+      }
+    }
+  }
 
   object SyncFolder {
     final val INBOX = "INBOX"

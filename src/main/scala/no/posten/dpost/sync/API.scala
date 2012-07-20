@@ -11,23 +11,27 @@ import org.apache.commons.io.FileUtils
 import org.apache.commons.io.IOUtils
 import java.io.InputStream
 
-case class EntryPoint(val csrfToken: String, val link: List[Link], val primaryAccount: Account) {
-  def links = link
-}
-case class Link(val rel: String, val uri: String, val `media-type`: String)
-object Link {
-  def apply(uri: String) = new Link(null, uri, null)
-}
-case class Accounts(val account: List[Account])
-case class Account(val fullName: String, val email: String, val link: List[Link]) {
-  def links = link
-}
-case class Documents(val document: List[Document])
-case class Document(val subject: String, val creatorName: String, val fileType: String, val link: List[Link]) {
-  def links = link
-}
+object API {
+  case class EntryPoint(val csrfToken: String, val link: List[Link], val primaryAccount: Account) {
+    def links = link
+  }
+  case class Link(val rel: String, val uri: String, val `media-type`: String)
+  object Link {
+    def apply(uri: String) = new Link(null, uri, null)
+  }
+  case class Accounts(val account: List[Account])
+  case class Account(val fullName: String, val email: String, val link: List[Link]) {
+    def links = link
+  }
+  case class Documents(val document: List[Document])
+  case class Document(val subject: String, val creatorName: String, val fileType: String, val link: List[Link]) {
+    def links = link
+    def id = getLink("self", links).toOption.get.uri
+    def filename = subject + (if (Option(fileType).isDefined) "." + fileType else "")
+  }
 
-trait API {
+  def getLink(relation: String, links: List[Link]) = links.find(_.rel.endsWith(relation)).toSuccess("No %s link found".format(relation))
+
   implicit val formats = DefaultFormats // Brings in default date formats etc.
 
   val baseUrl = "http://localhost:8080"
@@ -69,6 +73,4 @@ trait API {
       _ <- Control.trapAndFinally(http(url(link.uri).gzip <:< headers >> writeToStream(toStream)))(toStream.close)
     } yield ()
   }
-
-  def getLink(relation: String, links: List[Link]) = links.find(_.rel.endsWith(relation)).toSuccess("No %s link found".format(relation))
 }

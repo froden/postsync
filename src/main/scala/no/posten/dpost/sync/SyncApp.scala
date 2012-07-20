@@ -7,8 +7,9 @@ import org.apache.commons.io.FileUtils
 import scala.io.Source
 import scalaz._
 import Scalaz._
+import API._
 
-object SyncApp extends App with API {
+object SyncApp extends App {
   def getMessages(account: Account, rel: String) = for {
     documentsLink <- getLink(rel, account.links)
     documents <- GET[Documents](documentsLink)
@@ -17,9 +18,9 @@ object SyncApp extends App with API {
   def downloadDocumentTofolder(document: Document, folder: File) = {
     val link = getLink("get_document_content", document.links)
     val res = link map { link =>
-      val file = new File(folder, filename(document))
+      val file = new File(folder, document.filename)
       file.createNewFile
-      download(link, file).map(_ => file)
+      API.download(link, file).map(_ => file)
     }
     res.fold(err => err.fail, identity)
   }
@@ -33,22 +34,34 @@ object SyncApp extends App with API {
   if (!syncFolder.exists) syncFolder.mkdir()
   val syncFile = new File(syncFolder, ".sync")
   if (!syncFile.exists) syncFile.createNewFile()
-  val syncData = readSyncFile(syncFile)
+  val localSyncData = readSyncFile(syncFile)
 
-  val account = for {
+  val documentResult = for {
     _ <- authenticate("18118500008", "Qwer1234")
     entryPoint <- GET[EntryPoint](privateEntryLink)
     archive <- getMessages(entryPoint.primaryAccount, "document_archive")
-  } yield {
-    val downloadResults = archive.filterNot(doc => exists(doc, syncData)).map { doc =>
-      (doc, downloadDocumentTofolder(doc, syncFolder))
-    }
-    val downloaded = downloadResults.filter(_._2.isSuccess).map(tup => (tup._1, tup._2.toOption.get))
-    val newSyncItems = downloaded.map { tup =>
-      val (doc, file) = tup
-      SyncItem(getLink("self", doc.links).toOption.get.uri, file.getName, System.currentTimeMillis)
-    }
-    writeSyncFile(syncData ++ newSyncItems, syncFile)
-  }
+  } yield archive
+
+  val documents = documentResult | List()
+  val remoteSyncData = documents.map(doc => SyncItem(doc))
+  val deletedRemote = findItemsNotIn(localSyncData, remoteSyncData)
+  val deleted = delete(syncFolder, deletedRemote)
+  val localSyncDataAfterDelete = localSyncData -- deleted
+  val newRemote = findItemsNotIn(remoteSyncData, localSyncDataAfterDelete)
+  val downloaded = Sync.download(syncFolder, newRemote)
+
+  writeSyncFile(syncFile, localSyncDataAfterDelete ++ downloaded)
+
+  //  {
+  //    val downloadResults = archive.filterNot(doc => exists(doc, syncData)).map { doc =>
+  //      (doc, downloadDocumentTofolder(doc, syncFolder))
+  //    }
+  //    val downloaded = downloadResults.filter(_._2.isSuccess).map(tup => (tup._1, tup._2.toOption.get))
+  //    val newSyncItems = downloaded.map { tup =>
+  //      val (doc, file) = tup
+  //      SyncItem(getLink("self", doc.links).toOption.get.uri, file.getName, System.currentTimeMillis)
+  //    }
+  //    writeSyncFile(syncData ++ newSyncItems, syncFile)
+  //  }
 
 }
