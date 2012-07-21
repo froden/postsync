@@ -71,6 +71,19 @@ object Sync {
     }
   }
 
+  def findFilesNotIn(folder: File, syncData: List[SyncItem]): List[File] = {
+    val files = folder.listFiles
+    files.filterNot(f => syncData.exists(_.filename == f.getName)).toList
+  }
+
+  def upload(link: Link, token: String, files: List[File]): List[SyncItem] = {
+    val uploaded = files.filter { file =>
+      API.upload(link, token, file.getName, file).isSuccess
+    }
+    //download document
+    uploaded.map(f => SyncItem(f))
+  }
+
   object SyncFolder {
     final val INBOX = "INBOX"
     final val ARCHIVE = "ARCHIVE"

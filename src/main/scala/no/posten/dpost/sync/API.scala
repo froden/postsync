@@ -10,6 +10,8 @@ import java.io.OutputStream
 import org.apache.commons.io.FileUtils
 import org.apache.commons.io.IOUtils
 import java.io.InputStream
+import java.io.FileInputStream
+import dispatch.mime.Mime._
 
 object API {
   case class EntryPoint(val csrfToken: String, val link: List[Link], val primaryAccount: Account) {
@@ -72,5 +74,16 @@ object API {
       toStream <- Control.trap(FileUtils.openOutputStream(toFile))
       _ <- Control.trapAndFinally(http(url(link.uri).gzip <:< headers >> writeToStream(toStream)))(toStream.close)
     } yield ()
+  }
+
+  def upload(createLink: Link, token: String, subject: String, file: File) = {
+    val parameters = Map("subject" -> subject, "token" -> token)
+    for {
+      fromStream <- Control.trap(FileUtils.openInputStream(file))
+      status <- Control.trapAndFinally {
+        http(url(createLink.uri) << parameters <<* ("file", file.getName, () => fromStream) as_str)
+      }(fromStream.close)
+      resp <- if (status == "OK") success(status) else failure(status)
+    } yield resp
   }
 }
