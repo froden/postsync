@@ -76,12 +76,9 @@ object Sync {
     files.filterNot(f => syncData.exists(_.filename == f.getName)).toList
   }
 
-  def upload(link: Link, token: String, files: List[File]): List[SyncItem] = {
-    val uploaded = files.filter { file =>
-      API.upload(link, token, file.getName, file).isSuccess
-    }
-    //download document
-    uploaded.map(f => SyncItem(f))
+  def upload(link: Link, token: String, files: List[File]): List[SyncItem] = files.flatMap { file =>
+    val upload = API.upload(link, token, file.getName, file)
+    upload fold (_ => None, l => Some(SyncItem(l, file.getName, System.currentTimeMillis)))
   }
 
   object SyncFolder {

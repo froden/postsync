@@ -80,10 +80,13 @@ object API {
     val parameters = Map("subject" -> subject, "token" -> token)
     for {
       fromStream <- Control.trap(FileUtils.openInputStream(file))
-      status <- Control.trapAndFinally {
-        http(url(createLink.uri) << parameters <<* ("file", file.getName, () => fromStream) as_str)
+      location <- Control.trapAndFinally {
+        //extract link header if ok
+        http(url(createLink.uri) << parameters <<* ("file", file.getName, () => fromStream) >:> { headers =>
+          headers.getOrElse("location", Set("")).head
+        })
       }(fromStream.close)
-      resp <- if (status == "OK") success(status) else failure(status)
+      resp <- if (location != "") success(location) else failure()
     } yield resp
   }
 }

@@ -21,9 +21,14 @@ object SyncApp extends App {
   if (!syncFile.exists) syncFile.createNewFile()
   val localSyncData = readSyncFile(syncFile)
 
-  val documentResult = for {
+  val entryPointResult = for {
     _ <- authenticate("18118500008", "Qwer1234")
     entryPoint <- GET[EntryPoint](privateEntryLink)
+  } yield entryPoint
+
+  val entryPoint = entryPointResult.fold(_ => sys.error("Could not get entrypoint"), identity)
+
+  val documentResult = for {
     archive <- getMessages(entryPoint.primaryAccount, "document_archive")
   } yield archive
 
@@ -36,7 +41,9 @@ object SyncApp extends App {
   val downloaded = Sync.download(syncFolder, newRemote)
   val localSyncDataAfterDownload = localSyncDataAfterDelete ++ downloaded
   val newFiles = findFilesNotIn(syncFolder, localSyncDataAfterDownload)
-  val uploadedFiles = upload(newFiles)
+
+  val uploadLink = getLink("create_document", entryPoint.links).toOption.get
+  val uploadedFiles = Sync.upload(uploadLink, entryPoint.csrfToken, newFiles)
 
   writeSyncFile(syncFile, localSyncDataAfterDownload)
 
