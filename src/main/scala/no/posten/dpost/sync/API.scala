@@ -32,11 +32,9 @@ object API {
   case class Account(val fullName: String, val email: String, val link: List[Link]) extends Resource
   case class Documents(val document: List[Document])
   case class Document(val subject: String, val creatorName: String, val fileType: String, val link: List[Link]) extends Resource {
-    def id = getLink("self", links).toOption.get.uri
+    def id = link("self").get.uri
     def filename = subject + (if (Option(fileType).isDefined) "." + fileType else "")
   }
-
-  def getLink(relation: String, links: List[Link]) = links.find(_.rel.endsWith(relation)).toSuccess("No %s link found".format(relation))
 
   implicit val formats = DefaultFormats // Brings in default date formats etc.
 

@@ -10,10 +10,10 @@ import Scalaz._
 import API._
 
 object SyncApp extends App {
-  def getMessages(account: Account, rel: String) = for {
-    documentsLink <- getLink(rel, account.links)
-    documents <- GET[Documents](documentsLink)
-  } yield documents.document
+  def getMessages(account: Account, rel: String) = {
+    val documentsLink = account.link(rel).get
+    GET[Documents](documentsLink) map (_.document)
+  }
 
   val syncFolder = new File("/tmp/sync")
   if (!syncFolder.exists) syncFolder.mkdir()
