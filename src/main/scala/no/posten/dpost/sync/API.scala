@@ -14,20 +14,24 @@ import java.io.FileInputStream
 import dispatch.mime.Mime._
 
 object API {
-  case class EntryPoint(val csrfToken: String, val link: List[Link], val primaryAccount: Account) {
-    def links = link
+  sealed trait Resource {
+    val link: List[Link]
+
+    def links: List[Link] = link
+    def link(relation: String) = links.find(_.rel.endsWith(relation))
   }
+
   case class Link(val rel: String, val uri: String, val `media-type`: String)
   object Link {
     def apply(uri: String) = new Link(null, uri, null)
   }
+
+  case class EntryPoint(val csrfToken: String, val link: List[Link], val primaryAccount: Account) extends Resource
+
   case class Accounts(val account: List[Account])
-  case class Account(val fullName: String, val email: String, val link: List[Link]) {
-    def links = link
-  }
+  case class Account(val fullName: String, val email: String, val link: List[Link]) extends Resource
   case class Documents(val document: List[Document])
-  case class Document(val subject: String, val creatorName: String, val fileType: String, val link: List[Link]) {
-    def links = link
+  case class Document(val subject: String, val creatorName: String, val fileType: String, val link: List[Link]) extends Resource {
     def id = getLink("self", links).toOption.get.uri
     def filename = subject + (if (Option(fileType).isDefined) "." + fileType else "")
   }

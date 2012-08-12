@@ -71,15 +71,19 @@ object Sync {
     }
   }
 
-  def findFilesNotIn(folder: File, syncData: List[SyncItem]): List[File] = {
+  def findFilesNotIn(folder: File, syncData: List[SyncItem], ignore: List[String] = Nil): List[File] = {
     val files = folder.listFiles
-    files.filterNot(f => syncData.exists(_.filename == f.getName)).toList
+    val otherFiles = files.filterNot(f => syncData.exists(_.filename == f.getName)).toList
+    otherFiles.filterNot(f => ignore.contains(f.getName))
   }
 
   def upload(link: Link, token: String, files: List[File]): List[SyncItem] = files.flatMap { file =>
-    val upload = API.upload(link, token, file.getName, file)
+    println("upload " + file)
+    val upload = API.upload(link, token, removeSuffix(file.getName), file)
     upload fold (_ => None, l => Some(SyncItem(l, file.getName, System.currentTimeMillis)))
   }
+
+  def removeSuffix(str: String) = str.substring(0, str.lastIndexOf("."))
 
   object SyncFolder {
     final val INBOX = "INBOX"
