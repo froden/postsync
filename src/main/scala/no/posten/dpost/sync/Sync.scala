@@ -53,7 +53,6 @@ object Sync {
 
   def delete(folder: File, syncData: List[SyncItem]): List[SyncItem] = {
     syncData.filter { item =>
-      println("Deleting " + item)
       val file = new File(folder, item.filename)
       if (file.exists) file.delete() else true
     }
@@ -61,7 +60,6 @@ object Sync {
 
   def download(folder: File, syncData: List[SyncItem]): List[SyncItem] = {
     syncData.filter { item =>
-      println("Downloading " + item)
       val file = new File(folder, item.filename)
       if (!file.exists) {
         API.download(Link(item.id), file).isSuccess
@@ -78,7 +76,6 @@ object Sync {
   }
 
   def upload(link: Link, token: String, files: List[File]): List[SyncItem] = files.flatMap { file =>
-    println("upload " + file)
     val upload = API.upload(link, token, removeSuffix(file.getName), file)
     upload fold (_ => None, l => Some(SyncItem(l, file.getName, System.currentTimeMillis)))
   }
@@ -118,7 +115,7 @@ object SHA1 {
 
 object Control {
   def trap[A](block: => A): Validation[String, A] = {
-    trapAndFinally(block)(Unit)
+    trapAndFinally(block)()
   }
 
   def trapAndFinally[A](block: => A)(doFinally: => Unit): Validation[String, A] = {

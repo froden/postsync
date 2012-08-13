@@ -53,9 +53,7 @@ object API {
     val parameters = Seq("foedselsnummer" -> username, "passord" -> password)
     val headers = Map("Content-Type" -> UrlEncodedFormData)
     Control.trap {
-      http(url(baseUrl) / "passordautentisering" << parameters <:< headers >- {
-        println(_)
-      })
+      http(url(baseUrl) / "passordautentisering" << parameters <:< headers >|)
     }
   }
 
@@ -63,7 +61,6 @@ object API {
     val headers = Map("Accept" -> DigipostJsonV2)
     Control.trap {
       http(url(link.uri) <:< headers >- { json =>
-        println(json)
         JsonParser.parse(json).extract[T]
       })
     }
@@ -83,12 +80,11 @@ object API {
     for {
       fromStream <- Control.trap(FileUtils.openInputStream(file))
       location <- Control.trapAndFinally {
-        //extract link header if ok
-        http(url(createLink.uri) << parameters <<* ("file", file.getName, () => fromStream) >:> { headers =>
-          headers.getOrElse("location", Set("")).head
+        http(url(createLink.uri) << parameters <<* ("file", file.getName, () => fromStream) >:> {
+          _.get("Location")
         })
       }(fromStream.close)
-      resp <- if (location != "") success(location) else failure()
+      resp <- if (location.isDefined) success(location.get.head) else failure()
     } yield resp
   }
 }
